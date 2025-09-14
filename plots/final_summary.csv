@@ -1,0 +1,11 @@
+scenario,agent_variant,mean,std,n_seeds
+s4_noise_uncert,TRPO,75.108,0.33575058,10
+s4_noise_uncert,PPO,72.337,3.213115,10
+s4_noise_uncert,QAC,67.209465,7.700522,10
+s4_noise_uncert,NPG,63.408638,7.081416,10
+s4_noise_uncert,QPPG,53.28132,17.752014,10
+s5_combined,TRPO,109.165,0.6211154,10
+s5_combined,PPO,102.295,3.6383498,10
+s5_combined,QAC,70.740486,15.711795,10
+s5_combined,QPPG,70.27388,17.674059,10
+s5_combined,NPG,66.29341,6.0148616,10

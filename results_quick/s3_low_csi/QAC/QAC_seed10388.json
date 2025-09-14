@@ -1,0 +1,14 @@
+{
+  "agent": "QAC",
+  "seed": 10388,
+  "env_kwargs": {
+    "n_antennas": 4,
+    "pilot_snr_db": 5.0,
+    "noise_uncertainty_db": 0.0
+  },
+  "episodes": 200,
+  "steps_per_episode": 20,
+  "timestamp_start": 1757104411.4186714,
+  "duration_sec": 36.297056436538696,
+  "timestamp_end": 1757104447.7157292
+}

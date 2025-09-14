@@ -1,0 +1,15 @@
+{
+  "agent": "NPG",
+  "seed": 10097,
+  "env_kwargs": {
+    "n_antennas": 4,
+    "pilot_snr_db": 10.0,
+    "noise_uncertainty_db": 5.0
+  },
+  "episodes": 200,
+  "steps_per_episode": 20,
+  "timestamp_start": 1757108778.529276,
+  "xi": 0.5,
+  "duration_sec": 120.98262405395508,
+  "timestamp_end": 1757108899.5119011
+}

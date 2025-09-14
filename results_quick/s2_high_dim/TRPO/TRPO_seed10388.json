@@ -1,0 +1,16 @@
+{
+  "agent": "TRPO",
+  "seed": 10388,
+  "env_kwargs": {
+    "n_antennas": 8,
+    "pilot_snr_db": 10.0,
+    "noise_uncertainty_db": 0.0
+  },
+  "episodes": 200,
+  "steps_per_episode": 20,
+  "timestamp_start": 1757102762.4440343,
+  "sb3_total_timesteps": 200000,
+  "sb3_factor": 50,
+  "duration_sec": 297.94882822036743,
+  "timestamp_end": 1757103060.3928633
+}

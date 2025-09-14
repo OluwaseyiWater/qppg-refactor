@@ -1,0 +1,16 @@
+{
+  "agent": "PPO",
+  "seed": 10291,
+  "env_kwargs": {
+    "n_antennas": 8,
+    "pilot_snr_db": 10.0,
+    "noise_uncertainty_db": 0.0
+  },
+  "episodes": 200,
+  "steps_per_episode": 20,
+  "timestamp_start": 1757100739.374851,
+  "sb3_total_timesteps": 200000,
+  "sb3_factor": 50,
+  "duration_sec": 411.11546301841736,
+  "timestamp_end": 1757101150.4903147
+}

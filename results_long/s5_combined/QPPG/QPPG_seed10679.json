@@ -1,0 +1,18 @@
+{
+  "agent": "QPPG",
+  "seed": 10679,
+  "env_kwargs": {
+    "n_antennas": 8,
+    "pilot_snr_db": 10.0,
+    "noise_uncertainty_db": 5.0
+  },
+  "episodes": 500,
+  "steps_per_episode": 20,
+  "timestamp_start": 1757157581.7980657,
+  "xi": 0.5,
+  "fisher_samples": 128,
+  "cg_iters": 20,
+  "precond_every": 1,
+  "duration_sec": 328.8711953163147,
+  "timestamp_end": 1757157910.6692638
+}
