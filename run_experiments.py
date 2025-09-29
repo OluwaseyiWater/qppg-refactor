@@ -1,15 +1,32 @@
 import argparse, os, csv, json, time, numpy as np
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Set
 from environment import RayleighFadingChannelEnv, RayleighSB3Wrapper
 from agents import QPPG, ClassicalNPG, QAC, train_ppo_sb3, train_trpo_sb3
 
 SCENARIOS = {
-    "s1_baseline":      dict(n_antennas=4, pilot_snr_db=10.0, noise_uncertainty_db=0.0),
-    "s2_high_dim":      dict(n_antennas=8, pilot_snr_db=10.0, noise_uncertainty_db=0.0),
-    "s3_low_csi":       dict(n_antennas=4, pilot_snr_db=5.0,  noise_uncertainty_db=0.0),
-    "s4_noise_uncert":  dict(n_antennas=4, pilot_snr_db=10.0, noise_uncertainty_db=5.0),
-    "s5_combined":      dict(n_antennas=8, pilot_snr_db=10.0, noise_uncertainty_db=5.0),
+    "s1_baseline":     dict(n_antennas=4, pilot_snr_db=10.0, noise_uncertainty_db=0.0),
+    "s2_high_dim":     dict(n_antennas=8, pilot_snr_db=10.0, noise_uncertainty_db=0.0),
+    "s3_low_csi":      dict(n_antennas=4, pilot_snr_db=5.0,  noise_uncertainty_db=0.0),
+    "s4_noise_uncert": dict(n_antennas=4, pilot_snr_db=10.0, noise_uncertainty_db=5.0),
+    "s5_combined":     dict(n_antennas=8, pilot_snr_db=10.0, noise_uncertainty_db=5.0),
 }
+
+# --- CHECKPOINTING HELPER FUNCTIONS START ---
+
+def load_completed_jobs(path: str) -> Set[str]:
+    """Loads the set of completed job IDs from the progress log file."""
+    ensure_dir(os.path.dirname(path))
+    if not os.path.exists(path):
+        return set()
+    with open(path, "r") as f:
+        return {line.strip() for line in f if line.strip()}
+
+def log_job_complete(path: str, job_id: str):
+    """Appends a completed job ID to the progress log file."""
+    with open(path, "a") as f:
+        f.write(f"{job_id}\n")
+
+# --- CHECKPOINTING HELPER FUNCTIONS END ---
 
 def ensure_dir(path: str):
     os.makedirs(path, exist_ok=True)
@@ -133,6 +150,11 @@ def run_single_agent(env_kwargs: Dict[str, Any], agent_name: str, episodes: int,
 def run_scenarios(which: List[str], episodes: int, seeds: int, out_root: str, sb3_factor: int):
     AGENTS = ["QPPG", "NPG", "QAC", "PPO", "TRPO"]
 
+    # --- CHECKPOINTING: Load completed jobs ---
+    progress_log_path = os.path.join(out_root, "_completed_jobs.log")
+    completed_jobs = load_completed_jobs(progress_log_path)
+    print(f"Found {len(completed_jobs)} previously completed jobs.")
+
     # optional sweep of QPPG entropy start
     sweep = []
     if hasattr(args_ns, "qppg_entropy_sweep") and args_ns.qppg_entropy_sweep:
@@ -148,9 +170,15 @@ def run_scenarios(which: List[str], episodes: int, seeds: int, out_root: str, sb
                 seed = 10_000 + 97 * s
                 if a == "QPPG" and sweep:
                     for ec in sweep:
+                        # --- CHECKPOINTING: Define and check job ID ---
+                        job_id = f"{sc_key},{a},ec{ec:g},{seed}"
+                        if job_id in completed_jobs:
+                            print(f"Skipping completed job: {job_id}")
+                            continue
+
                         agent_dir = os.path.join(out_dir, f"{a}_ec{ec:g}")
                         ensure_dir(agent_dir)
-                        print(f" -> {a}, seed={seed}, entropy_start={ec}")
+                        print(f" -> Running {a}, seed={seed}, entropy_start={ec}")
                         agent_kwargs = dict(
                             xi=args_ns.qppg_xi,
                             lr=args_ns.qppg_lr,
@@ -165,10 +193,21 @@ def run_scenarios(which: List[str], episodes: int, seeds: int, out_root: str, sb
                             gae_lambda=args_ns.qppg_gae_lambda,
                         )
                         run_single_agent(env_kwargs, a, episodes, seed, agent_dir, agent_kwargs, sb3_factor)
+
+                        # --- CHECKPOINTING: Log job as complete ---
+                        log_job_complete(progress_log_path, job_id)
+                        completed_jobs.add(job_id)
+
                 else:
+                    # --- CHECKPOINTING: Define and check job ID ---
+                    job_id = f"{sc_key},{a},{seed}"
+                    if job_id in completed_jobs:
+                        print(f"Skipping completed job: {job_id}")
+                        continue
+                        
                     agent_dir = os.path.join(out_dir, a)
                     ensure_dir(agent_dir)
-                    print(f" -> {a}, seed={seed}")
+                    print(f" -> Running {a}, seed={seed}")
                     agent_kwargs = {}
                     if a == "QPPG":
                         agent_kwargs = dict(
@@ -187,6 +226,11 @@ def run_scenarios(which: List[str], episodes: int, seeds: int, out_root: str, sb
                             gae_lambda=args_ns.qppg_gae_lambda,
                         )
                     run_single_agent(env_kwargs, a, episodes, seed, agent_dir, agent_kwargs, sb3_factor)
+                    
+                    # --- CHECKPOINTING: Log job as complete ---
+                    log_job_complete(progress_log_path, job_id)
+                    completed_jobs.add(job_id)
+
 
 def run_ablation_xi(episodes: int, seeds: int, out_root: str):
     """Run xi ablation ONLY on s1_baseline."""
@@ -195,21 +239,45 @@ def run_ablation_xi(episodes: int, seeds: int, out_root: str):
     out_dir = os.path.join(out_root, "ablation")
     ensure_dir(out_dir)
     csv_path = os.path.join(out_dir, "xi_sweep.csv")
+    
+    # --- CHECKPOINTING: Load completed jobs ---
+    progress_log_path = os.path.join(out_dir, "_completed_ablation_jobs.log")
+    completed_jobs = load_completed_jobs(progress_log_path)
+    print(f"\n[Ablation] Found {len(completed_jobs)} previously completed ablation jobs.")
 
-    with open(csv_path, "w", newline="") as f:
+    # Only write header if the main output file doesn't exist
+    write_header = not os.path.exists(csv_path)
+    
+    with open(csv_path, "a", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["xi", "seed", "final_avg_reward"])
+        if write_header:
+            w.writerow(["xi", "seed", "final_avg_reward"])
+        
         for xi in xis:
             for s in range(seeds):
                 seed = 20_000 + 127 * s
+                
+                # --- CHECKPOINTING: Define and check job ID ---
+                job_id = f"ablation,xi{xi},{seed}"
+                if job_id in completed_jobs:
+                    print(f"Skipping completed ablation job: {job_id}")
+                    continue
+
                 env = RayleighFadingChannelEnv(max_steps=20, **env_kwargs)
                 agent = QPPG(env, xi=xi, fisher_samples=128, cg_iters=20, precond_every=1,
                              entropy_coef=1e-3, value_coef=0.5, hidden=64)
                 rew = agent.train(episodes=episodes, seed=seed)
                 k = min(25, len(rew))
                 avg_final = float(np.mean(rew[-k:]))
+                
+                # Write result and log completion
                 w.writerow([xi, seed, avg_final])
+                f.flush() # Ensure data is written to disk immediately
                 print(f"[Ablation] xi={xi}, seed={seed}, final_avg_reward={avg_final:.3f}")
+                
+                # --- CHECKPOINTING: Log job as complete ---
+                log_job_complete(progress_log_path, job_id)
+                completed_jobs.add(job_id)
 
 def main():
     ap = argparse.ArgumentParser()
